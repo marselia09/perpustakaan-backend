@@ -1,0 +1,84 @@
+version: '3.8'
+
+services:
+  mysql:
+    image: mysql:8.0
+    container_name: perpustakaan-mysql
+    environment:
+      MYSQL_ROOT_PASSWORD: root123
+      MYSQL_DATABASE: perpustakaan
+      MYSQL_USER: perpustakaan
+      MYSQL_PASSWORD: perpustakaan123
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-proot123"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  rabbitmq:
+    image: rabbitmq:3-management-alpine
+    container_name: perpustakaan-rabbitmq
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    environment:
+      RABBITMQ_DEFAULT_USER: guest
+      RABBITMQ_DEFAULT_PASS: guest
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: perpustakaan-app
+    ports:
+      - "3000:3000"
+      - "3001:3001"
+      - "3002:3002"
+      - "3003:3003"
+    environment:
+      NODE_ENV: production
+      GATEWAY_PORT: 3000
+      AUTH_SERVICE_PORT: 3001
+      BOOK_SERVICE_PORT: 3002
+      TRANSACTION_SERVICE_PORT: 3003
+      DB_HOST: mysql
+      DB_PORT: 3306
+      DB_NAME: perpustakaan
+      DB_USER: root
+      DB_PASSWORD: root123
+      JWT_SECRET: perpustakaan_secret_key_2024_jwt_signing_key
+      JWT_EXPIRES_IN: 24h
+      RABBITMQ_URL: amqp://guest:guest@rabbitmq:5672
+      RABBITMQ_QUEUE: library_events
+      AUTH_SERVICE_URL: http://localhost:3001
+      BOOK_SERVICE_URL: http://localhost:3002
+      TRANSACTION_SERVICE_URL: http://localhost:3003
+    depends_on:
+      mysql:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_started
+    volumes:
+      - ./scripts:/app/scripts
+    command: >
+      sh -c "
+        echo 'Starting Gateway...' &&
+        node gateway/src/index.js &
+        echo 'Starting Auth Service...' &&
+        node services/auth-service/src/index.js &
+        echo 'Starting Book Service...' &&
+        node services/book-service/src/index.js &
+        echo 'Starting Transaction Service...' &&
+        node services/transaction-service/src/index.js &
+        wait
+      "
+
+volumes:
+  mysql_data:
+  rabbitmq_data:
