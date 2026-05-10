@@ -10,7 +10,7 @@ services:
       MYSQL_USER: perpustakaan
       MYSQL_PASSWORD: perpustakaan123
     ports:
-      - "3306:3306"
+      - "3310:3306"
     volumes:
       - mysql_data:/var/lib/mysql
     healthcheck:
@@ -23,7 +23,7 @@ services:
     image: rabbitmq:3-management-alpine
     container_name: perpustakaan-rabbitmq
     ports:
-      - "5672:5672"
+      - "5610:5672"
       - "15672:15672"
     environment:
       RABBITMQ_DEFAULT_USER: guest
